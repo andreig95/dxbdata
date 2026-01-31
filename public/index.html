@@ -1,0 +1,838 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DXBData - Dubai Real Estate Intelligence</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #0a0a0f; color: #fff; min-height: 100vh; }
+        .header { background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%); padding: 1rem 1.5rem; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #2a2a4a; position: sticky; top: 0; z-index: 100; flex-wrap: wrap; gap: 0.5rem; }
+        .logo { font-size: 1.5rem; font-weight: bold; background: linear-gradient(90deg, #00d4ff, #7b2cbf); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+        .header-actions { display: flex; gap: 0.5rem; align-items: center; }
+        .btn { padding: 0.5rem 1rem; background: linear-gradient(90deg, #00d4ff, #7b2cbf); border: none; border-radius: 6px; color: #fff; font-weight: 600; cursor: pointer; font-size: 0.8rem; transition: opacity 0.2s; }
+        .btn:hover { opacity: 0.9; }
+        .btn-secondary { background: #2a2a4a; }
+        .btn-sm { padding: 0.35rem 0.7rem; font-size: 0.75rem; }
+        .stats-bar { display: flex; justify-content: center; gap: 1.5rem; padding: 0.75rem; background: rgba(0,212,255,0.05); flex-wrap: wrap; }
+        .stat { text-align: center; }
+        .stat-value { font-size: 1.1rem; font-weight: bold; color: #00d4ff; }
+        .stat-label { font-size: 0.65rem; color: #666; }
+        .container { max-width: 1400px; margin: 0 auto; padding: 1rem; }
+        .tabs { display: flex; gap: 0.5rem; margin-bottom: 1rem; overflow-x: auto; }
+        .tab { padding: 0.5rem 1rem; background: #1a1a2a; border: 1px solid #2a2a4a; border-radius: 6px; color: #888; cursor: pointer; font-size: 0.8rem; white-space: nowrap; }
+        .tab.active { background: rgba(0,212,255,0.1); border-color: #00d4ff; color: #00d4ff; }
+        .mobile-filter-toggle { display: none; width: 100%; padding: 0.6rem; background: #1a1a2a; border: 1px solid #3a3a5a; border-radius: 8px; color: #00d4ff; font-size: 0.85rem; cursor: pointer; margin-bottom: 0.75rem; }
+        .filters { background: #12121a; padding: 1rem; border-radius: 12px; margin-bottom: 1rem; border: 1px solid #2a2a4a; }
+        .filters h3 { margin-bottom: 0.75rem; color: #00d4ff; font-size: 0.85rem; }
+        .filter-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 0.6rem; }
+        .filter-group label { display: block; font-size: 0.65rem; color: #888; margin-bottom: 0.15rem; text-transform: uppercase; }
+        .filter-group input, .filter-group select { width: 100%; padding: 0.45rem; background: #1a1a2a; border: 1px solid #3a3a5a; border-radius: 5px; color: #fff; font-size: 0.8rem; }
+        .filter-row { display: flex; gap: 0.4rem; }
+        .filter-row input { flex: 1; min-width: 0; }
+        .autocomplete-wrapper { position: relative; }
+        .autocomplete-list { position: absolute; top: 100%; left: 0; right: 0; background: #1a1a2a; border: 1px solid #3a3a5a; border-radius: 0 0 6px 6px; max-height: 180px; overflow-y: auto; z-index: 50; display: none; }
+        .autocomplete-list.show { display: block; }
+        .autocomplete-item { padding: 0.4rem 0.6rem; cursor: pointer; font-size: 0.8rem; border-bottom: 1px solid #2a2a3a; }
+        .autocomplete-item:hover { background: #2a2a4a; }
+        .autocomplete-item small { color: #666; }
+        .presets { display: flex; gap: 0.4rem; margin-top: 0.6rem; flex-wrap: wrap; }
+        .preset { padding: 0.3rem 0.6rem; background: rgba(0,212,255,0.1); border: 1px solid rgba(0,212,255,0.3); border-radius: 15px; color: #00d4ff; font-size: 0.65rem; cursor: pointer; }
+        .preset:hover { background: rgba(0,212,255,0.2); }
+        .view-toggle { display: flex; gap: 0.25rem; background: #1a1a2a; padding: 0.25rem; border-radius: 6px; }
+        .view-toggle button { padding: 0.4rem 0.8rem; background: transparent; border: none; color: #888; cursor: pointer; border-radius: 4px; font-size: 0.75rem; }
+        .view-toggle button.active { background: #00d4ff; color: #000; }
+        .charts-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 0.75rem; margin-bottom: 1rem; }
+        .chart-card { background: #12121a; border-radius: 10px; border: 1px solid #2a2a4a; padding: 0.75rem; }
+        .chart-card h4 { color: #888; font-size: 0.7rem; margin-bottom: 0.5rem; text-transform: uppercase; }
+        .chart-container { position: relative; height: 160px; }
+        #mapView { height: 400px; border-radius: 10px; display: none; margin-bottom: 1rem; }
+        .results { background: #12121a; border-radius: 12px; border: 1px solid #2a2a4a; overflow: hidden; }
+        .results-header { padding: 0.6rem 1rem; background: #1a1a2a; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.5rem; border-bottom: 1px solid #2a2a4a; }
+        .results-count { color: #888; font-size: 0.8rem; }
+        .results-count span { color: #00d4ff; font-weight: bold; }
+        .results-controls { display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap; }
+        .results-controls select { padding: 0.35rem; background: #2a2a4a; border: 1px solid #3a3a5a; border-radius: 4px; color: #fff; font-size: 0.75rem; }
+        .table-wrapper { overflow-x: auto; }
+        table { width: 100%; border-collapse: collapse; min-width: 600px; }
+        th { text-align: left; padding: 0.5rem 0.6rem; background: #1a1a2a; color: #888; font-size: 0.65rem; text-transform: uppercase; cursor: pointer; white-space: nowrap; }
+        td { padding: 0.5rem 0.6rem; border-bottom: 1px solid #1a1a2a; font-size: 0.8rem; }
+        tr { cursor: pointer; }
+        tr:hover { background: rgba(0,212,255,0.05); }
+        .price { color: #4caf50; font-weight: 600; }
+        .tag { display: inline-block; padding: 0.1rem 0.35rem; border-radius: 3px; font-size: 0.65rem; white-space: nowrap; }
+        .tag-area { background: rgba(123,44,191,0.2); color: #b388ff; }
+        .tag-type { background: rgba(0,212,255,0.1); color: #00d4ff; }
+        .tag-below { background: rgba(76,175,80,0.2); color: #4caf50; }
+        .tag-above { background: rgba(244,67,54,0.2); color: #f44336; }
+        .pagination { display: flex; justify-content: center; align-items: center; gap: 0.2rem; padding: 0.75rem; flex-wrap: wrap; }
+        .pagination button { padding: 0.35rem 0.6rem; background: #2a2a4a; border: none; border-radius: 4px; color: #fff; cursor: pointer; font-size: 0.75rem; }
+        .pagination button.active { background: #00d4ff; color: #000; }
+        .pagination button:disabled { opacity: 0.4; cursor: not-allowed; }
+        .pagination input { width: 45px; padding: 0.35rem; background: #1a1a2a; border: 1px solid #3a3a5a; border-radius: 4px; color: #fff; text-align: center; font-size: 0.75rem; }
+        .skeleton { background: linear-gradient(90deg, #1a1a2a 25%, #2a2a4a 50%, #1a1a2a 75%); background-size: 200% 100%; animation: shimmer 1.5s infinite; border-radius: 4px; }
+        @keyframes shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
+        .skeleton-row { display: flex; gap: 0.75rem; padding: 0.6rem; border-bottom: 1px solid #1a1a2a; }
+        .skeleton-cell { height: 18px; flex: 1; }
+        .error-state { text-align: center; padding: 2rem; color: #888; }
+        .error-state button { margin-top: 0.75rem; }
+
+        /* Modal */
+        .modal-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.8); z-index: 1000; display: none; align-items: center; justify-content: center; padding: 1rem; }
+        .modal-overlay.show { display: flex; }
+        .modal { background: #12121a; border-radius: 12px; border: 1px solid #2a2a4a; max-width: 600px; width: 100%; max-height: 90vh; overflow-y: auto; }
+        .modal-header { padding: 1rem; border-bottom: 1px solid #2a2a4a; display: flex; justify-content: space-between; align-items: center; }
+        .modal-header h2 { font-size: 1.1rem; color: #00d4ff; }
+        .modal-close { background: none; border: none; color: #888; font-size: 1.5rem; cursor: pointer; }
+        .modal-body { padding: 1rem; }
+        .detail-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; }
+        .detail-item { background: #1a1a2a; padding: 0.75rem; border-radius: 6px; }
+        .detail-item label { font-size: 0.65rem; color: #888; text-transform: uppercase; display: block; margin-bottom: 0.25rem; }
+        .detail-item .value { font-size: 1rem; color: #fff; }
+        .detail-item .value.highlight { color: #00d4ff; font-weight: bold; }
+
+        /* User dashboard */
+        .dashboard { display: none; }
+        .dashboard.show { display: block; }
+        .dashboard-section { background: #12121a; border-radius: 12px; border: 1px solid #2a2a4a; padding: 1rem; margin-bottom: 1rem; }
+        .dashboard-section h3 { color: #00d4ff; font-size: 0.9rem; margin-bottom: 0.75rem; }
+        .watchlist-item, .alert-item { background: #1a1a2a; padding: 0.75rem; border-radius: 6px; margin-bottom: 0.5rem; display: flex; justify-content: space-between; align-items: center; }
+        .watchlist-item .name { font-weight: 600; }
+        .watchlist-item .details, .alert-item .details { font-size: 0.75rem; color: #888; }
+        .empty-state { text-align: center; padding: 2rem; color: #666; }
+
+        /* Auth forms */
+        .auth-form { max-width: 350px; margin: 0 auto; }
+        .auth-form .form-group { margin-bottom: 0.75rem; }
+        .auth-form label { display: block; font-size: 0.75rem; color: #888; margin-bottom: 0.25rem; }
+        .auth-form input { width: 100%; padding: 0.6rem; background: #1a1a2a; border: 1px solid #3a3a5a; border-radius: 6px; color: #fff; }
+        .auth-form .btn { width: 100%; margin-top: 0.5rem; }
+        .auth-tabs { display: flex; margin-bottom: 1rem; }
+        .auth-tabs button { flex: 1; padding: 0.6rem; background: #1a1a2a; border: 1px solid #2a2a4a; color: #888; cursor: pointer; }
+        .auth-tabs button:first-child { border-radius: 6px 0 0 6px; }
+        .auth-tabs button:last-child { border-radius: 0 6px 6px 0; }
+        .auth-tabs button.active { background: #00d4ff; color: #000; border-color: #00d4ff; }
+        .user-menu { position: relative; }
+        .user-avatar { width: 32px; height: 32px; border-radius: 50%; background: linear-gradient(90deg, #00d4ff, #7b2cbf); display: flex; align-items: center; justify-content: center; cursor: pointer; font-weight: bold; font-size: 0.8rem; }
+        .user-dropdown { position: absolute; top: 100%; right: 0; background: #1a1a2a; border: 1px solid #3a3a5a; border-radius: 6px; min-width: 150px; display: none; z-index: 200; }
+        .user-dropdown.show { display: block; }
+        .user-dropdown a { display: block; padding: 0.6rem 1rem; color: #fff; text-decoration: none; font-size: 0.8rem; }
+        .user-dropdown a:hover { background: #2a2a4a; }
+
+        @media (max-width: 768px) {
+            .header { padding: 0.75rem; }
+            .logo { font-size: 1.25rem; }
+            .mobile-filter-toggle { display: block; }
+            .filters { display: none; }
+            .filters.show { display: block; }
+            .filter-grid { grid-template-columns: 1fr 1fr; }
+            .charts-grid { grid-template-columns: 1fr; }
+            .detail-grid { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div class="logo">DXBData</div>
+        <div class="header-actions">
+            <button class="btn btn-sm btn-secondary" onclick="exportCSV()">📥 Export</button>
+            <button class="btn btn-sm btn-secondary" onclick="shareSearch()">🔗 Share</button>
+            <div id="authButtons">
+                <button class="btn btn-sm" onclick="showAuthModal()">Login</button>
+            </div>
+            <div id="userMenu" class="user-menu" style="display:none;">
+                <div class="user-avatar" onclick="toggleUserMenu()"><span id="userInitial">U</span></div>
+                <div class="user-dropdown" id="userDropdown">
+                    <a href="#" onclick="showDashboard()">📊 Dashboard</a>
+                    <a href="#" onclick="showWatchlists()">👁️ Watchlists</a>
+                    <a href="#" onclick="showAlerts()">🔔 Alerts</a>
+                    <a href="#" onclick="logout()">🚪 Logout</a>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="stats-bar">
+        <div class="stat"><div class="stat-value" id="totalTx">-</div><div class="stat-label">Transactions</div></div>
+        <div class="stat"><div class="stat-value" id="totalValue">-</div><div class="stat-label">Total Value</div></div>
+        <div class="stat"><div class="stat-value" id="avgPrice">-</div><div class="stat-label">Avg/sqm</div></div>
+        <div class="stat"><div class="stat-value" id="totalAreas">-</div><div class="stat-label">Areas</div></div>
+    </div>
+
+    <div class="container">
+        <div id="mainContent">
+            <div class="tabs">
+                <div class="tab active" data-tab="transactions">📊 Transactions</div>
+                <div class="tab" data-tab="areas">🏘️ Areas</div>
+                <div class="tab" data-tab="flips">🔄 Flips</div>
+                <div class="tab" data-tab="offplan">🏗️ Off-Plan</div>
+                <div class="tab" data-tab="map">🗺️ Map</div>
+            </div>
+
+            <button class="mobile-filter-toggle" onclick="toggleFilters()">🔍 Filters</button>
+
+            <div class="filters" id="filtersPanel">
+                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.75rem;">
+                    <h3 style="margin:0;">🔍 Filters</h3>
+                    <div class="view-toggle">
+                        <button class="active" onclick="setView('table')">📋 Table</button>
+                        <button onclick="setView('map')">🗺️ Map</button>
+                    </div>
+                </div>
+                <div class="filter-grid">
+                    <div class="filter-group">
+                        <label>Area</label>
+                        <div class="autocomplete-wrapper">
+                            <input type="text" id="filterArea" placeholder="Search area..." autocomplete="off">
+                            <div class="autocomplete-list" id="areaAutocomplete"></div>
+                        </div>
+                    </div>
+                    <div class="filter-group">
+                        <label>Building</label>
+                        <input type="text" id="filterBuilding" placeholder="Search..." autocomplete="off">
+                    </div>
+                    <div class="filter-group">
+                        <label>Type</label>
+                        <select id="filterType">
+                            <option value="">All</option>
+                            <option value="Unit">Unit</option>
+                            <option value="Villa">Villa</option>
+                            <option value="Land">Land</option>
+                        </select>
+                    </div>
+                    <div class="filter-group">
+                        <label>Status</label>
+                        <select id="filterReg">
+                            <option value="">All</option>
+                            <option value="Off-plan">Off-Plan</option>
+                            <option value="Existing">Ready</option>
+                        </select>
+                    </div>
+                    <div class="filter-group">
+                        <label>Price (AED)</label>
+                        <div class="filter-row">
+                            <input type="number" id="filterMinPrice" placeholder="Min">
+                            <input type="number" id="filterMaxPrice" placeholder="Max">
+                        </div>
+                    </div>
+                    <div class="filter-group">
+                        <label>Size (sqm)</label>
+                        <div class="filter-row">
+                            <input type="number" id="filterMinSize" placeholder="Min">
+                            <input type="number" id="filterMaxSize" placeholder="Max">
+                        </div>
+                    </div>
+                    <div class="filter-group">
+                        <label>From</label>
+                        <input type="date" id="filterFromDate">
+                    </div>
+                    <div class="filter-group">
+                        <label>To</label>
+                        <input type="date" id="filterToDate">
+                    </div>
+                </div>
+                <div style="display:flex;gap:0.5rem;margin-top:0.75rem;flex-wrap:wrap;">
+                    <button class="btn" onclick="search()">🔍 Search</button>
+                    <button class="btn btn-secondary" onclick="resetFilters()">↺ Reset</button>
+                    <button class="btn btn-secondary" onclick="saveSearch()" id="saveSearchBtn" style="display:none;">💾 Save Search</button>
+                </div>
+                <div class="presets">
+                    <span class="preset" onclick="applyPreset('luxury')">💎 Luxury</span>
+                    <span class="preset" onclick="applyPreset('affordable')">💰 Budget</span>
+                    <span class="preset" onclick="applyPreset('offplan')">🏗️ Off-Plan</span>
+                    <span class="preset" onclick="applyPreset('recent')">📅 Recent</span>
+                </div>
+            </div>
+
+            <div id="mapView"></div>
+
+            <div class="charts-grid" id="chartsSection">
+                <div class="chart-card">
+                    <h4>📈 Price Trend</h4>
+                    <div class="chart-container"><canvas id="trendChart"></canvas></div>
+                </div>
+                <div class="chart-card">
+                    <h4>🏘️ Top Areas</h4>
+                    <div class="chart-container"><canvas id="areasChart"></canvas></div>
+                </div>
+            </div>
+
+            <div class="results">
+                <div class="results-header">
+                    <div class="results-count">Showing <span id="resultCount">0</span> results</div>
+                    <div class="results-controls">
+                        <select id="pageSize" onchange="search()">
+                            <option value="25">25</option>
+                            <option value="50" selected>50</option>
+                            <option value="100">100</option>
+                        </select>
+                        <select id="sortBy" onchange="search()">
+                            <option value="instance_date">Date</option>
+                            <option value="actual_worth">Price</option>
+                            <option value="meter_sale_price">Price/sqm</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="table-wrapper"><div id="resultsBody"></div></div>
+                <div class="pagination" id="pagination"></div>
+            </div>
+        </div>
+
+        <!-- Dashboard -->
+        <div id="dashboardContent" class="dashboard">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem;">
+                <h2 style="color:#00d4ff;">📊 My Dashboard</h2>
+                <button class="btn btn-secondary btn-sm" onclick="hideDashboard()">← Back</button>
+            </div>
+            
+            <div class="dashboard-section">
+                <h3>👁️ Watchlists</h3>
+                <div id="watchlistsList"><div class="empty-state">No watchlists yet. Create one to track specific areas or properties.</div></div>
+                <button class="btn btn-sm" style="margin-top:0.75rem;" onclick="showCreateWatchlist()">+ New Watchlist</button>
+            </div>
+
+            <div class="dashboard-section">
+                <h3>🔔 Price Alerts</h3>
+                <div id="alertsList"><div class="empty-state">No alerts set. Create one to get notified of price changes.</div></div>
+                <button class="btn btn-sm" style="margin-top:0.75rem;" onclick="showCreateAlert()">+ New Alert</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Auth Modal -->
+    <div class="modal-overlay" id="authModal">
+        <div class="modal" style="max-width:400px;">
+            <div class="modal-header">
+                <h2>Welcome to DXBData</h2>
+                <button class="modal-close" onclick="hideAuthModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="auth-tabs">
+                    <button class="active" onclick="showLoginForm()">Login</button>
+                    <button onclick="showSignupForm()">Sign Up</button>
+                </div>
+                <form class="auth-form" id="loginForm" onsubmit="handleLogin(event)">
+                    <div class="form-group">
+                        <label>Email</label>
+                        <input type="email" id="loginEmail" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Password</label>
+                        <input type="password" id="loginPassword" required>
+                    </div>
+                    <button type="submit" class="btn">Login</button>
+                    <p style="text-align:center;margin-top:1rem;font-size:0.75rem;color:#888;">Or continue with</p>
+                    <button type="button" class="btn btn-secondary" style="width:100%;margin-top:0.5rem;" onclick="googleLogin()">🔍 Google</button>
+                </form>
+                <form class="auth-form" id="signupForm" style="display:none;" onsubmit="handleSignup(event)">
+                    <div class="form-group">
+                        <label>Name</label>
+                        <input type="text" id="signupName" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Email</label>
+                        <input type="email" id="signupEmail" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Password</label>
+                        <input type="password" id="signupPassword" required minlength="8">
+                    </div>
+                    <button type="submit" class="btn">Create Account</button>
+                </form>
+                <p id="authError" style="color:#f44336;text-align:center;margin-top:0.75rem;font-size:0.8rem;"></p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Detail Modal -->
+    <div class="modal-overlay" id="detailModal">
+        <div class="modal">
+            <div class="modal-header">
+                <h2 id="detailTitle">Transaction Details</h2>
+                <button class="modal-close" onclick="hideDetailModal()">&times;</button>
+            </div>
+            <div class="modal-body" id="detailBody"></div>
+        </div>
+    </div>
+
+    <!-- Create Watchlist Modal -->
+    <div class="modal-overlay" id="watchlistModal">
+        <div class="modal" style="max-width:450px;">
+            <div class="modal-header">
+                <h2>Create Watchlist</h2>
+                <button class="modal-close" onclick="hideWatchlistModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <form onsubmit="createWatchlist(event)">
+                    <div class="form-group" style="margin-bottom:0.75rem;">
+                        <label style="font-size:0.75rem;color:#888;">Name</label>
+                        <input type="text" id="wlName" required style="width:100%;padding:0.5rem;background:#1a1a2a;border:1px solid #3a3a5a;border-radius:6px;color:#fff;">
+                    </div>
+                    <div class="form-group" style="margin-bottom:0.75rem;">
+                        <label style="font-size:0.75rem;color:#888;">Area (optional)</label>
+                        <input type="text" id="wlArea" style="width:100%;padding:0.5rem;background:#1a1a2a;border:1px solid #3a3a5a;border-radius:6px;color:#fff;">
+                    </div>
+                    <div class="form-group" style="margin-bottom:0.75rem;">
+                        <label style="font-size:0.75rem;color:#888;">Property Type</label>
+                        <select id="wlType" style="width:100%;padding:0.5rem;background:#1a1a2a;border:1px solid #3a3a5a;border-radius:6px;color:#fff;">
+                            <option value="">Any</option>
+                            <option value="Unit">Unit</option>
+                            <option value="Villa">Villa</option>
+                            <option value="Land">Land</option>
+                        </select>
+                    </div>
+                    <button type="submit" class="btn">Create Watchlist</button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Create Alert Modal -->
+    <div class="modal-overlay" id="alertModal">
+        <div class="modal" style="max-width:450px;">
+            <div class="modal-header">
+                <h2>Create Price Alert</h2>
+                <button class="modal-close" onclick="hideAlertModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <form onsubmit="createAlert(event)">
+                    <div class="form-group" style="margin-bottom:0.75rem;">
+                        <label style="font-size:0.75rem;color:#888;">Area</label>
+                        <input type="text" id="alertArea" style="width:100%;padding:0.5rem;background:#1a1a2a;border:1px solid #3a3a5a;border-radius:6px;color:#fff;">
+                    </div>
+                    <div class="form-group" style="margin-bottom:0.75rem;">
+                        <label style="font-size:0.75rem;color:#888;">Alert Type</label>
+                        <select id="alertType" style="width:100%;padding:0.5rem;background:#1a1a2a;border:1px solid #3a3a5a;border-radius:6px;color:#fff;">
+                            <option value="price_sqm_below">Price/sqm drops below</option>
+                            <option value="price_sqm_above">Price/sqm goes above</option>
+                            <option value="price_below">Price drops below</option>
+                            <option value="new_transaction">Any new transaction</option>
+                        </select>
+                    </div>
+                    <div class="form-group" style="margin-bottom:0.75rem;" id="thresholdGroup">
+                        <label style="font-size:0.75rem;color:#888;">Threshold (AED)</label>
+                        <input type="number" id="alertThreshold" style="width:100%;padding:0.5rem;background:#1a1a2a;border:1px solid #3a3a5a;border-radius:6px;color:#fff;">
+                    </div>
+                    <button type="submit" class="btn">Create Alert</button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let currentPage = 0, areas = [], areaAvgPrices = {}, currentUser = null, map = null, markers = [];
+        const API = '/api';
+
+        // Auth
+        function getToken() { return localStorage.getItem('dxb_token'); }
+        function setToken(t) { localStorage.setItem('dxb_token', t); }
+        function clearToken() { localStorage.removeItem('dxb_token'); localStorage.removeItem('dxb_user'); }
+        
+        async function checkAuth() {
+            const token = getToken();
+            if (!token) return;
+            try {
+                const res = await fetch(API + '/auth/me', { headers: { 'Authorization': 'Bearer ' + token }});
+                if (res.ok) {
+                    currentUser = await res.json();
+                    localStorage.setItem('dxb_user', JSON.stringify(currentUser));
+                    showUserMenu();
+                }
+            } catch(e) { clearToken(); }
+        }
+
+        function showUserMenu() {
+            document.getElementById('authButtons').style.display = 'none';
+            document.getElementById('userMenu').style.display = 'block';
+            document.getElementById('userInitial').textContent = (currentUser.name || currentUser.email || 'U')[0].toUpperCase();
+            document.getElementById('saveSearchBtn').style.display = 'inline-block';
+        }
+
+        function toggleUserMenu() {
+            document.getElementById('userDropdown').classList.toggle('show');
+        }
+
+        function showAuthModal() { document.getElementById('authModal').classList.add('show'); }
+        function hideAuthModal() { document.getElementById('authModal').classList.remove('show'); document.getElementById('authError').textContent = ''; }
+        function showLoginForm() { document.getElementById('loginForm').style.display = 'block'; document.getElementById('signupForm').style.display = 'none'; document.querySelectorAll('.auth-tabs button').forEach((b,i) => b.classList.toggle('active', i===0)); }
+        function showSignupForm() { document.getElementById('loginForm').style.display = 'none'; document.getElementById('signupForm').style.display = 'block'; document.querySelectorAll('.auth-tabs button').forEach((b,i) => b.classList.toggle('active', i===1)); }
+
+        async function handleLogin(e) {
+            e.preventDefault();
+            try {
+                const res = await fetch(API + '/auth/login', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email: document.getElementById('loginEmail').value, password: document.getElementById('loginPassword').value })
+                });
+                const data = await res.json();
+                if (!res.ok) throw new Error(data.error);
+                setToken(data.token);
+                currentUser = data.user;
+                localStorage.setItem('dxb_user', JSON.stringify(currentUser));
+                hideAuthModal();
+                showUserMenu();
+            } catch(e) { document.getElementById('authError').textContent = e.message; }
+        }
+
+        async function handleSignup(e) {
+            e.preventDefault();
+            try {
+                const res = await fetch(API + '/auth/register', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ name: document.getElementById('signupName').value, email: document.getElementById('signupEmail').value, password: document.getElementById('signupPassword').value })
+                });
+                const data = await res.json();
+                if (!res.ok) throw new Error(data.error);
+                setToken(data.token);
+                currentUser = data.user;
+                hideAuthModal();
+                showUserMenu();
+            } catch(e) { document.getElementById('authError').textContent = e.message; }
+        }
+
+        function logout() { clearToken(); currentUser = null; location.reload(); }
+        function googleLogin() { alert('Google Sign-In requires configuration. Use email/password for now.'); }
+
+        // Dashboard
+        function showDashboard() {
+            document.getElementById('mainContent').style.display = 'none';
+            document.getElementById('dashboardContent').classList.add('show');
+            document.getElementById('userDropdown').classList.remove('show');
+            loadWatchlists();
+            loadAlerts();
+        }
+        function hideDashboard() {
+            document.getElementById('mainContent').style.display = 'block';
+            document.getElementById('dashboardContent').classList.remove('show');
+        }
+        function showWatchlists() { showDashboard(); }
+        function showAlerts() { showDashboard(); }
+
+        async function loadWatchlists() {
+            const token = getToken();
+            if (!token) return;
+            try {
+                const res = await fetch(API + '/watchlists', { headers: { 'Authorization': 'Bearer ' + token }});
+                const data = await res.json();
+                if (data.length === 0) {
+                    document.getElementById('watchlistsList').innerHTML = '<div class="empty-state">No watchlists yet.</div>';
+                } else {
+                    document.getElementById('watchlistsList').innerHTML = data.map(w => 
+                        '<div class="watchlist-item"><div><div class="name">' + w.name + '</div><div class="details">' + (w.area_name || 'All areas') + ' • ' + (w.property_type || 'All types') + '</div></div><button class="btn btn-sm btn-secondary" onclick="deleteWatchlist(' + w.id + ')">🗑️</button></div>'
+                    ).join('');
+                }
+            } catch(e) {}
+        }
+
+        async function loadAlerts() {
+            const token = getToken();
+            if (!token) return;
+            try {
+                const res = await fetch(API + '/alerts', { headers: { 'Authorization': 'Bearer ' + token }});
+                const data = await res.json();
+                if (data.length === 0) {
+                    document.getElementById('alertsList').innerHTML = '<div class="empty-state">No alerts set.</div>';
+                } else {
+                    document.getElementById('alertsList').innerHTML = data.map(a => 
+                        '<div class="alert-item"><div><div class="name">' + (a.area_name || 'Any area') + '</div><div class="details">' + a.alert_type + (a.threshold ? ': ' + Number(a.threshold).toLocaleString() + ' AED' : '') + '</div></div><button class="btn btn-sm btn-secondary" onclick="deleteAlert(' + a.id + ')">🗑️</button></div>'
+                    ).join('');
+                }
+            } catch(e) {}
+        }
+
+        function showCreateWatchlist() { document.getElementById('watchlistModal').classList.add('show'); }
+        function hideWatchlistModal() { document.getElementById('watchlistModal').classList.remove('show'); }
+        function showCreateAlert() { document.getElementById('alertModal').classList.add('show'); }
+        function hideAlertModal() { document.getElementById('alertModal').classList.remove('show'); }
+
+        async function createWatchlist(e) {
+            e.preventDefault();
+            const token = getToken();
+            try {
+                await fetch(API + '/watchlists', {
+                    method: 'POST',
+                    headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ name: document.getElementById('wlName').value, area_name: document.getElementById('wlArea').value, property_type: document.getElementById('wlType').value })
+                });
+                hideWatchlistModal();
+                loadWatchlists();
+            } catch(e) { alert('Failed to create watchlist'); }
+        }
+
+        async function createAlert(e) {
+            e.preventDefault();
+            const token = getToken();
+            try {
+                await fetch(API + '/alerts', {
+                    method: 'POST',
+                    headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ area_name: document.getElementById('alertArea').value, alert_type: document.getElementById('alertType').value, threshold: document.getElementById('alertThreshold').value || null })
+                });
+                hideAlertModal();
+                loadAlerts();
+            } catch(e) { alert('Failed to create alert'); }
+        }
+
+        async function deleteWatchlist(id) {
+            if (!confirm('Delete this watchlist?')) return;
+            await fetch(API + '/watchlists/' + id, { method: 'DELETE', headers: { 'Authorization': 'Bearer ' + getToken() }});
+            loadWatchlists();
+        }
+
+        async function deleteAlert(id) {
+            if (!confirm('Delete this alert?')) return;
+            await fetch(API + '/alerts/' + id, { method: 'DELETE', headers: { 'Authorization': 'Bearer ' + getToken() }});
+            loadAlerts();
+        }
+
+        // Export & Share
+        function exportCSV() {
+            const params = buildParams();
+            params.set('limit', '10000');
+            window.open(API + '/transactions?' + params.toString() + '&format=csv', '_blank');
+            alert('Export started. For large datasets, this may take a moment.');
+        }
+
+        function shareSearch() {
+            const url = window.location.href;
+            navigator.clipboard.writeText(url).then(() => alert('Link copied to clipboard!')).catch(() => prompt('Copy this link:', url));
+        }
+
+        function saveSearch() {
+            if (!currentUser) { showAuthModal(); return; }
+            const area = document.getElementById('filterArea').value;
+            showCreateWatchlist();
+            document.getElementById('wlName').value = area || 'My Search';
+            document.getElementById('wlArea').value = area;
+        }
+
+        // Detail modals
+        function showTransactionDetail(tx) {
+            document.getElementById('detailTitle').textContent = 'Transaction Details';
+            const areaAvg = areaAvgPrices[(tx.area_name_en || '').toLowerCase()] || 0;
+            const priceSqm = parseFloat(tx.meter_sale_price) || 0;
+            let marketDiff = '';
+            if (areaAvg && priceSqm) {
+                const diff = ((priceSqm - areaAvg) / areaAvg * 100).toFixed(1);
+                marketDiff = diff < 0 ? '<span style="color:#4caf50;">▼ ' + Math.abs(diff) + '% below market</span>' : '<span style="color:#f44336;">▲ ' + diff + '% above market</span>';
+            }
+            document.getElementById('detailBody').innerHTML = 
+                '<div class="detail-grid">' +
+                '<div class="detail-item"><label>Date</label><div class="value">' + (tx.instance_date ? new Date(tx.instance_date).toLocaleDateString() : '-') + '</div></div>' +
+                '<div class="detail-item"><label>Price</label><div class="value highlight">AED ' + Number(tx.actual_worth || 0).toLocaleString() + '</div></div>' +
+                '<div class="detail-item"><label>Price/sqm</label><div class="value">' + Number(priceSqm).toLocaleString() + ' ' + marketDiff + '</div></div>' +
+                '<div class="detail-item"><label>Size</label><div class="value">' + Number(tx.procedure_area || 0).toLocaleString() + ' sqm</div></div>' +
+                '<div class="detail-item"><label>Area</label><div class="value">' + (tx.area_name_en || '-') + '</div></div>' +
+                '<div class="detail-item"><label>Building</label><div class="value">' + (tx.building_name_en || '-') + '</div></div>' +
+                '<div class="detail-item"><label>Type</label><div class="value">' + (tx.property_type_en || '-') + ' - ' + (tx.property_sub_type_en || '-') + '</div></div>' +
+                '<div class="detail-item"><label>Status</label><div class="value">' + (tx.reg_type_en || '-') + '</div></div>' +
+                '<div class="detail-item"><label>Rooms</label><div class="value">' + (tx.rooms_en || '-') + '</div></div>' +
+                '<div class="detail-item"><label>Project</label><div class="value">' + (tx.project_name_en || '-') + '</div></div>' +
+                '<div class="detail-item"><label>Developer</label><div class="value">' + (tx.master_project_en || '-') + '</div></div>' +
+                '<div class="detail-item"><label>Near Metro</label><div class="value">' + (tx.nearest_metro_en || '-') + '</div></div>' +
+                '</div>';
+            document.getElementById('detailModal').classList.add('show');
+        }
+
+        async function showAreaDetail(areaName) {
+            document.getElementById('detailTitle').textContent = areaName;
+            document.getElementById('detailBody').innerHTML = '<div style="text-align:center;padding:2rem;">Loading...</div>';
+            document.getElementById('detailModal').classList.add('show');
+            try {
+                const data = await fetch(API + '/neighborhoods/' + encodeURIComponent(areaName)).then(r => r.json());
+                document.getElementById('detailBody').innerHTML = 
+                    '<div class="detail-grid">' +
+                    '<div class="detail-item"><label>Transactions</label><div class="value highlight">' + Number(data.stats?.total_transactions || 0).toLocaleString() + '</div></div>' +
+                    '<div class="detail-item"><label>Avg Price</label><div class="value">AED ' + Number(data.stats?.avg_price || 0).toLocaleString() + '</div></div>' +
+                    '<div class="detail-item"><label>Avg/sqm</label><div class="value">' + Number(data.stats?.avg_price_sqm || 0).toLocaleString() + '</div></div>' +
+                    '<div class="detail-item"><label>Buildings</label><div class="value">' + (data.stats?.buildings || 0) + '</div></div>' +
+                    '</div>' +
+                    '<h4 style="margin:1rem 0 0.5rem;color:#888;font-size:0.75rem;">NEARBY METROS</h4>' +
+                    '<div style="display:flex;flex-wrap:wrap;gap:0.25rem;">' + (data.nearby?.metros || []).map(m => '<span class="tag tag-type">' + m.metro + '</span>').join('') + '</div>' +
+                    '<h4 style="margin:1rem 0 0.5rem;color:#888;font-size:0.75rem;">TOP DEVELOPERS</h4>' +
+                    '<div style="display:flex;flex-wrap:wrap;gap:0.25rem;">' + (data.top_developers || []).slice(0,5).map(d => '<span class="tag tag-area">' + d.developer + '</span>').join('') + '</div>';
+            } catch(e) { document.getElementById('detailBody').innerHTML = '<div class="error-state">Failed to load area details</div>'; }
+        }
+
+        function hideDetailModal() { document.getElementById('detailModal').classList.remove('show'); }
+
+        // Map
+        function initMap() {
+            if (map) return;
+            map = L.map('mapView').setView([25.2048, 55.2708], 11);
+            L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', { attribution: '© OpenStreetMap' }).addTo(map);
+        }
+
+        function setView(view) {
+            document.querySelectorAll('.view-toggle button').forEach(b => b.classList.remove('active'));
+            event.target.classList.add('active');
+            if (view === 'map') {
+                document.getElementById('mapView').style.display = 'block';
+                initMap();
+                setTimeout(() => map.invalidateSize(), 100);
+            } else {
+                document.getElementById('mapView').style.display = 'none';
+            }
+        }
+
+        // Core functions
+        function showSkeleton() {
+            let html = '';
+            for (let i = 0; i < 8; i++) html += '<div class="skeleton-row">' + '<div class="skeleton skeleton-cell"></div>'.repeat(6) + '</div>';
+            document.getElementById('resultsBody').innerHTML = html;
+        }
+
+        function buildParams() {
+            const params = new URLSearchParams();
+            const limit = parseInt(document.getElementById('pageSize').value) || 50;
+            params.set('limit', limit);
+            params.set('offset', currentPage * limit);
+            params.set('sort', document.getElementById('sortBy').value);
+            params.set('order', 'DESC');
+            ['filterArea:area', 'filterBuilding:building', 'filterType:property_type', 'filterReg:reg_type', 'filterMinPrice:min_price', 'filterMaxPrice:max_price', 'filterMinSize:min_size', 'filterMaxSize:max_size', 'filterFromDate:from_date', 'filterToDate:to_date'].forEach(f => {
+                const [id, key] = f.split(':');
+                const val = document.getElementById(id)?.value;
+                if (val) params.set(key, val);
+            });
+            return params;
+        }
+
+        async function search() {
+            showSkeleton();
+            const params = buildParams();
+            history.replaceState(null, '', params.toString() ? '?' + params.toString() : location.pathname);
+            try {
+                const data = await fetch(API + '/transactions?' + params.toString()).then(r => r.json());
+                renderResults(data);
+            } catch(e) { document.getElementById('resultsBody').innerHTML = '<div class="error-state">Failed to load<br><button class="btn btn-sm" onclick="search()">Retry</button></div>'; }
+        }
+
+        let txCache = [];
+        function renderResults(data) {
+            txCache = data.data || [];
+            const total = data.total || txCache.length;
+            const limit = parseInt(document.getElementById('pageSize').value) || 50;
+            document.getElementById('resultCount').textContent = total.toLocaleString();
+            if (!txCache.length) { document.getElementById('resultsBody').innerHTML = '<div class="error-state">No results</div>'; document.getElementById('pagination').innerHTML = ''; return; }
+
+            let html = '<table><thead><tr><th>Date</th><th>Area</th><th>Type</th><th>Size</th><th>Price</th><th>vs Mkt</th></tr></thead><tbody>';
+            txCache.forEach((tx, idx) => {
+                const priceSqm = parseFloat(tx.meter_sale_price) || 0;
+                const areaAvg = areaAvgPrices[(tx.area_name_en || '').toLowerCase()] || 0;
+                let mkt = '';
+                if (areaAvg && priceSqm) {
+                    const diff = ((priceSqm - areaAvg) / areaAvg * 100).toFixed(0);
+                    mkt = diff < -10 ? '<span class="tag tag-below">▼' + Math.abs(diff) + '%</span>' : diff > 10 ? '<span class="tag tag-above">▲' + diff + '%</span>' : '<span class="tag" style="opacity:0.5;">~</span>';
+                }
+                html += '<tr onclick="goToTransaction(txCache[' + idx + '])">' +
+                    '<td>' + (tx.instance_date ? new Date(tx.instance_date).toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'2-digit'}) : '-') + '</td>' +
+                    '<td><span class="tag tag-area" onclick="event.stopPropagation();showAreaDetail(\'' + (tx.area_name_en || '').replace(/'/g,"\\'") + '\')">' + (tx.area_name_en || '-').substring(0,20) + '</span></td>' +
+                    '<td><span class="tag tag-type">' + (tx.property_sub_type_en || tx.property_type_en || '-') + '</span></td>' +
+                    '<td>' + (tx.procedure_area ? Number(tx.procedure_area).toFixed(0) : '-') + '</td>' +
+                    '<td class="price">' + (tx.actual_worth ? Number(tx.actual_worth).toLocaleString() : '-') + '</td>' +
+                    '<td>' + mkt + '</td></tr>';
+            });
+            html += '</tbody></table>';
+            document.getElementById('resultsBody').innerHTML = html;
+
+            const totalPages = Math.ceil(total / limit);
+            let pag = '<button ' + (currentPage === 0 ? 'disabled' : '') + ' onclick="goToPage(0)">«</button>';
+            pag += '<button ' + (currentPage === 0 ? 'disabled' : '') + ' onclick="goToPage(' + (currentPage-1) + ')">‹</button>';
+            for (let i = Math.max(0, currentPage-2); i <= Math.min(totalPages-1, currentPage+2); i++) pag += '<button class="' + (i===currentPage?'active':'') + '" onclick="goToPage(' + i + ')">' + (i+1) + '</button>';
+            pag += '<button ' + (currentPage >= totalPages-1 ? 'disabled' : '') + ' onclick="goToPage(' + (currentPage+1) + ')">›</button>';
+            pag += '<button ' + (currentPage >= totalPages-1 ? 'disabled' : '') + ' onclick="goToPage(' + (totalPages-1) + ')">»</button>';
+            pag += ' <input type="number" value="' + (currentPage+1) + '" min="1" max="' + totalPages + '" onchange="goToPage(parseInt(this.value)-1)"> / ' + totalPages;
+            document.getElementById('pagination').innerHTML = pag;
+        }
+
+        function goToPage(p) { currentPage = Math.max(0, p); search(); document.querySelector('.results').scrollIntoView({behavior:'smooth'}); }
+        function toggleFilters() { document.getElementById('filtersPanel').classList.toggle('show'); }
+        function resetFilters() { ['filterArea','filterBuilding','filterMinPrice','filterMaxPrice','filterMinSize','filterMaxSize','filterFromDate','filterToDate'].forEach(id => document.getElementById(id).value = ''); document.getElementById('filterType').value = ''; document.getElementById('filterReg').value = ''; currentPage = 0; search(); }
+        function applyPreset(p) { resetFilters(); if(p==='luxury') document.getElementById('filterMinPrice').value=5000000; else if(p==='affordable') document.getElementById('filterMaxPrice').value=1000000; else if(p==='offplan') document.getElementById('filterReg').value='Off-plan'; else if(p==='recent') { const d=new Date(); d.setDate(d.getDate()-30); document.getElementById('filterFromDate').value=d.toISOString().split('T')[0]; } search(); }
+
+        function switchTab(tab) {
+            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+            document.querySelector('[data-tab="' + tab + '"]').classList.add('active');
+            document.getElementById('chartsSection').style.display = (tab === 'transactions') ? 'grid' : 'none';
+            document.getElementById('mapView').style.display = (tab === 'map') ? 'block' : 'none';
+            if (tab === 'map') { initMap(); setTimeout(() => map.invalidateSize(), 100); }
+            else if (tab === 'areas') loadAreas();
+            else if (tab === 'flips') loadFlips();
+            else if (tab === 'offplan') loadOffplan();
+            else search();
+        }
+
+        async function loadAreas() {
+            showSkeleton();
+            const data = await fetch(API + '/areas').then(r => r.json());
+            let html = '<table><thead><tr><th>Area</th><th>Transactions</th><th>Avg Price</th><th>Avg/sqm</th></tr></thead><tbody>';
+            data.slice(0,50).forEach(a => html += '<tr onclick="showAreaDetail(\'' + a.area_name_en.replace(/'/g,"\\'") + '\')"><td><span class="tag tag-area">' + a.area_name_en + '</span></td><td>' + Number(a.transaction_count).toLocaleString() + '</td><td class="price">AED ' + Number(a.avg_price||0).toLocaleString() + '</td><td>' + Number(a.avg_price_sqm||0).toLocaleString() + '</td></tr>');
+            document.getElementById('resultsBody').innerHTML = html + '</tbody></table>';
+            document.getElementById('resultCount').textContent = data.length;
+            document.getElementById('pagination').innerHTML = '';
+        }
+
+        async function loadFlips() {
+            showSkeleton();
+            const data = await fetch(API + '/flips/by-area?min_flips=50').then(r => r.json());
+            let html = '<table><thead><tr><th>Area</th><th>Flips</th><th>Avg Profit</th><th>%</th><th>Success</th></tr></thead><tbody>';
+            data.slice(0,50).forEach(f => html += '<tr><td><span class="tag tag-area">' + f.area + '</span></td><td>' + Number(f.total_flips).toLocaleString() + '</td><td class="price">AED ' + Number(f.avg_profit_aed||0).toLocaleString() + '</td><td>' + Number(f.avg_profit_pct||0).toFixed(1) + '%</td><td>' + f.success_rate_pct + '%</td></tr>');
+            document.getElementById('resultsBody').innerHTML = html + '</tbody></table>';
+            document.getElementById('resultCount').textContent = data.length;
+            document.getElementById('pagination').innerHTML = '';
+        }
+
+        async function loadOffplan() {
+            showSkeleton();
+            const data = await fetch(API + '/offplan/projects?min_units=50').then(r => r.json());
+            let html = '<table><thead><tr><th>Project</th><th>Area</th><th>Sales</th><th>Avg/sqm</th><th>Value</th></tr></thead><tbody>';
+            data.slice(0,50).forEach(p => html += '<tr><td>' + (p.project||'-') + '</td><td><span class="tag tag-area">' + (p.area||'-') + '</span></td><td>' + Number(p.total_sales).toLocaleString() + '</td><td>' + Number(p.avg_price_sqm||0).toLocaleString() + '</td><td class="price">AED ' + (Number(p.total_value||0)/1e6).toFixed(1) + 'M</td></tr>');
+            document.getElementById('resultsBody').innerHTML = html + '</tbody></table>';
+            document.getElementById('resultCount').textContent = data.length;
+            document.getElementById('pagination').innerHTML = '';
+        }
+
+        async function init() {
+            checkAuth();
+            const params = new URLSearchParams(location.search);
+            ['area:filterArea','building:filterBuilding','property_type:filterType','reg_type:filterReg','min_price:filterMinPrice','max_price:filterMaxPrice','from_date:filterFromDate','to_date:filterToDate'].forEach(m => { const [k,id] = m.split(':'); if(params.get(k)) document.getElementById(id).value = params.get(k); });
+
+            const stats = await fetch(API + '/stats').then(r => r.json());
+            document.getElementById('totalTx').textContent = Number(stats.total_transactions||0).toLocaleString();
+            document.getElementById('totalValue').textContent = (Number(stats.total_value||0)/1e9).toFixed(1) + 'B';
+            document.getElementById('avgPrice').textContent = Number(stats.avg_price_sqm||0).toLocaleString(undefined,{maximumFractionDigits:0});
+
+            areas = await fetch(API + '/areas').then(r => r.json());
+            document.getElementById('totalAreas').textContent = areas.length;
+            areas.forEach(a => areaAvgPrices[a.area_name_en.toLowerCase()] = parseFloat(a.avg_price_sqm) || 0);
+
+            // Autocomplete
+            const areaInput = document.getElementById('filterArea'), areaList = document.getElementById('areaAutocomplete');
+            areaInput.addEventListener('input', () => {
+                const v = areaInput.value.toLowerCase();
+                if (v.length < 2) { areaList.classList.remove('show'); return; }
+                const matches = areas.filter(a => a.area_name_en.toLowerCase().includes(v)).slice(0,6);
+                if (!matches.length) { areaList.classList.remove('show'); return; }
+                areaList.innerHTML = matches.map(a => '<div class="autocomplete-item" onclick="document.getElementById(\'filterArea\').value=\'' + a.area_name_en.replace(/'/g,"\\'") + '\';document.getElementById(\'areaAutocomplete\').classList.remove(\'show\');">' + a.area_name_en + ' <small>(' + Number(a.transaction_count).toLocaleString() + ')</small></div>').join('');
+                areaList.classList.add('show');
+            });
+            areaInput.addEventListener('blur', () => setTimeout(() => areaList.classList.remove('show'), 200));
+
+            // Charts
+            const trends = await fetch(API + '/trends?years=1').then(r => r.json());
+            new Chart(document.getElementById('trendChart'), { type:'line', data:{ labels: trends.slice(-12).map(t => new Date(t.month).toLocaleDateString('en',{month:'short'})), datasets:[{data: trends.slice(-12).map(t => parseFloat(t.avg_price_sqm)||0), borderColor:'#00d4ff', backgroundColor:'rgba(0,212,255,0.1)', fill:true, tension:0.4}]}, options:{responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}}, scales:{y:{ticks:{color:'#666'},grid:{color:'#2a2a4a'}},x:{ticks:{color:'#666'},grid:{display:false}}}}});
+            new Chart(document.getElementById('areasChart'), { type:'bar', data:{ labels: areas.slice(0,5).map(a => a.area_name_en.substring(0,12)), datasets:[{data: areas.slice(0,5).map(a => parseInt(a.transaction_count)), backgroundColor:['#00d4ff','#7b2cbf','#4caf50','#ff9800','#f44336']}]}, options:{responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}}, scales:{y:{ticks:{color:'#666'},grid:{color:'#2a2a4a'}},x:{ticks:{color:'#666'},grid:{display:false}}}}});
+
+            document.querySelectorAll('.tab').forEach(t => t.onclick = () => switchTab(t.dataset.tab));
+            search();
+        }
+        init();
+    </script>
+</body>
+</html>
+function goToTransaction(tx) { window.location.href = "/transaction.html?id=" + tx.id; }

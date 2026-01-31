@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Transaction Details - DXBData</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #0a0a0f; color: #fff; min-height: 100vh; }
+        .header { background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%); padding: 1rem 1.5rem; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #2a2a4a; }
+        .logo { font-size: 1.5rem; font-weight: bold; background: linear-gradient(90deg, #00d4ff, #7b2cbf); -webkit-background-clip: text; -webkit-text-fill-color: transparent; text-decoration: none; }
+        .btn { padding: 0.5rem 1rem; background: #2a2a4a; border: none; border-radius: 6px; color: #fff; cursor: pointer; font-size: 0.85rem; text-decoration: none; display: inline-block; }
+        .btn:hover { background: #3a3a5a; }
+        .container { max-width: 1000px; margin: 0 auto; padding: 1.5rem; }
+        .loading { text-align: center; padding: 4rem; color: #888; }
+        .error { text-align: center; padding: 4rem; color: #f44336; }
+        
+        .tx-header { margin-bottom: 1.5rem; }
+        .tx-header h1 { font-size: 1.5rem; color: #00d4ff; margin-bottom: 0.5rem; }
+        .tx-header .subtitle { color: #888; font-size: 0.9rem; }
+        
+        .price-hero { background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%); padding: 2rem; border-radius: 12px; margin-bottom: 1.5rem; text-align: center; border: 1px solid #2a2a4a; }
+        .price-hero .price { font-size: 2.5rem; font-weight: bold; color: #4caf50; }
+        .price-hero .price-sqm { font-size: 1.25rem; color: #888; margin-top: 0.5rem; }
+        .price-hero .market-tag { display: inline-block; padding: 0.4rem 1rem; border-radius: 20px; margin-top: 1rem; font-size: 0.9rem; }
+        .price-hero .market-tag.below { background: rgba(76,175,80,0.2); color: #4caf50; }
+        .price-hero .market-tag.above { background: rgba(244,67,54,0.2); color: #f44336; }
+        .price-hero .market-tag.market { background: rgba(255,255,255,0.1); color: #888; }
+        
+        .section { background: #12121a; border-radius: 12px; border: 1px solid #2a2a4a; margin-bottom: 1rem; overflow: hidden; }
+        .section-header { padding: 1rem 1.25rem; background: #1a1a2a; border-bottom: 1px solid #2a2a4a; font-size: 0.9rem; font-weight: 600; color: #00d4ff; }
+        .section-body { padding: 1.25rem; }
+        
+        .info-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; }
+        .info-item { }
+        .info-item label { display: block; font-size: 0.7rem; color: #666; text-transform: uppercase; margin-bottom: 0.25rem; }
+        .info-item .value { font-size: 1rem; color: #fff; }
+        .info-item .value.highlight { color: #00d4ff; font-weight: 600; }
+        
+        .tag { display: inline-block; padding: 0.2rem 0.5rem; border-radius: 4px; font-size: 0.75rem; }
+        .tag-area { background: rgba(123,44,191,0.2); color: #b388ff; }
+        .tag-type { background: rgba(0,212,255,0.1); color: #00d4ff; }
+        .tag-status { background: rgba(76,175,80,0.1); color: #4caf50; }
+        
+        .similar-section { margin-top: 2rem; }
+        .similar-section h3 { color: #888; font-size: 0.9rem; margin-bottom: 1rem; }
+        .similar-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1rem; }
+        .similar-card { background: #12121a; border: 1px solid #2a2a4a; border-radius: 10px; padding: 1rem; cursor: pointer; transition: border-color 0.2s; }
+        .similar-card:hover { border-color: #00d4ff; }
+        .similar-card .date { font-size: 0.75rem; color: #666; }
+        .similar-card .price { font-size: 1.1rem; color: #4caf50; font-weight: 600; margin: 0.5rem 0; }
+        .similar-card .details { font-size: 0.8rem; color: #888; }
+        
+        @media (max-width: 768px) {
+            .price-hero .price { font-size: 2rem; }
+            .info-grid { grid-template-columns: 1fr 1fr; }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <a href="/" class="logo">DXBData</a>
+        <a href="/" class="btn">← Back to Search</a>
+    </div>
+    
+    <div class="container">
+        <div id="content">
+            <div class="loading">Loading transaction details...</div>
+        </div>
+    </div>
+
+    <script>
+        const API = '/api';
+        let areaAvgPrices = {};
+
+        async function loadTransaction() {
+            const params = new URLSearchParams(location.search);
+            const id = params.get('id');
+            
+            if (!id) {
+                document.getElementById('content').innerHTML = '<div class="error">No transaction ID provided</div>';
+                return;
+            }
+
+            try {
+                // Load area averages for comparison
+                const areas = await fetch(API + '/areas').then(r => r.json());
+                areas.forEach(a => areaAvgPrices[a.area_name_en.toLowerCase()] = parseFloat(a.avg_price_sqm) || 0);
+
+                // Load transaction
+                const tx = await fetch(API + '/transactions/' + id).then(r => r.json());
+                if (tx.error) throw new Error(tx.error);
+
+                renderTransaction(tx);
+                loadSimilar(tx);
+            } catch(e) {
+                document.getElementById('content').innerHTML = '<div class="error">Failed to load transaction: ' + e.message + '</div>';
+            }
+        }
+
+        function renderTransaction(tx) {
+            const price = parseFloat(tx.actual_worth) || 0;
+            const priceSqm = parseFloat(tx.meter_sale_price) || 0;
+            const size = parseFloat(tx.procedure_area) || 0;
+            const areaAvg = areaAvgPrices[(tx.area_name_en || '').toLowerCase()] || 0;
+            
+            let marketTag = '';
+            if (areaAvg && priceSqm) {
+                const diff = ((priceSqm - areaAvg) / areaAvg * 100).toFixed(1);
+                if (diff < -5) marketTag = '<div class="market-tag below">▼ ' + Math.abs(diff) + '% below market average</div>';
+                else if (diff > 5) marketTag = '<div class="market-tag above">▲ ' + diff + '% above market average</div>';
+                else marketTag = '<div class="market-tag market">≈ At market average</div>';
+            }
+
+            const date = tx.instance_date ? new Date(tx.instance_date).toLocaleDateString('en-GB', {day: 'numeric', month: 'long', year: 'numeric'}) : 'Unknown';
+
+            document.getElementById('content').innerHTML = `
+                <div class="tx-header">
+                    <h1>${tx.building_name_en || tx.project_name_en || tx.area_name_en || 'Property'}</h1>
+                    <div class="subtitle">${tx.area_name_en || ''} • ${tx.property_type_en || ''} • ${date}</div>
+                </div>
+
+                <div class="price-hero">
+                    <div class="price">AED ${price.toLocaleString()}</div>
+                    <div class="price-sqm">${priceSqm.toLocaleString()} AED/sqm • ${size.toLocaleString()} sqm</div>
+                    ${marketTag}
+                </div>
+
+                <div class="section">
+                    <div class="section-header">📋 Property Details</div>
+                    <div class="section-body">
+                        <div class="info-grid">
+                            <div class="info-item">
+                                <label>Property Type</label>
+                                <div class="value"><span class="tag tag-type">${tx.property_type_en || '-'}</span></div>
+                            </div>
+                            <div class="info-item">
+                                <label>Sub Type</label>
+                                <div class="value">${tx.property_sub_type_en || '-'}</div>
+                            </div>
+                            <div class="info-item">
+                                <label>Usage</label>
+                                <div class="value">${tx.property_usage_en || '-'}</div>
+                            </div>
+                            <div class="info-item">
+                                <label>Rooms</label>
+                                <div class="value">${tx.rooms_en || '-'}</div>
+                            </div>
+                            <div class="info-item">
+                                <label>Size</label>
+                                <div class="value highlight">${size.toLocaleString()} sqm</div>
+                            </div>
+                            <div class="info-item">
+                                <label>Parking</label>
+                                <div class="value">${tx.has_parking == 1 ? '✓ Yes' : tx.has_parking == 0 ? '✗ No' : '-'}</div>
+                            </div>
+                            <div class="info-item">
+                                <label>Registration Type</label>
+                                <div class="value"><span class="tag tag-status">${tx.reg_type_en || '-'}</span></div>
+                            </div>
+                            <div class="info-item">
+                                <label>Transaction Type</label>
+                                <div class="value">${tx.trans_group_en || '-'} - ${tx.procedure_name_en || '-'}</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="section">
+                    <div class="section-header">📍 Location</div>
+                    <div class="section-body">
+                        <div class="info-grid">
+                            <div class="info-item">
+                                <label>Area / Community</label>
+                                <div class="value"><span class="tag tag-area">${tx.area_name_en || '-'}</span></div>
+                            </div>
+                            <div class="info-item">
+                                <label>Building</label>
+                                <div class="value">${tx.building_name_en || '-'}</div>
+                            </div>
+                            <div class="info-item">
+                                <label>Project</label>
+                                <div class="value">${tx.project_name_en || '-'}</div>
+                            </div>
+                            <div class="info-item">
+                                <label>Master Developer</label>
+                                <div class="value">${tx.master_project_en || '-'}</div>
+                            </div>
+                            <div class="info-item">
+                                <label>Nearest Metro</label>
+                                <div class="value">🚇 ${tx.nearest_metro_en || '-'}</div>
+                            </div>
+                            <div class="info-item">
+                                <label>Nearest Mall</label>
+                                <div class="value">🛍️ ${tx.nearest_mall_en || '-'}</div>
+                            </div>
+                            <div class="info-item">
+                                <label>Nearest Landmark</label>
+                                <div class="value">📍 ${tx.nearest_landmark_en || '-'}</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="section">
+                    <div class="section-header">💰 Transaction Details</div>
+                    <div class="section-body">
+                        <div class="info-grid">
+                            <div class="info-item">
+                                <label>Transaction ID</label>
+                                <div class="value" style="font-family:monospace;font-size:0.85rem;">${tx.transaction_id || '-'}</div>
+                            </div>
+                            <div class="info-item">
+                                <label>Date</label>
+                                <div class="value highlight">${date}</div>
+                            </div>
+                            <div class="info-item">
+                                <label>Total Price</label>
+                                <div class="value highlight">AED ${price.toLocaleString()}</div>
+                            </div>
+                            <div class="info-item">
+                                <label>Price per sqm</label>
+                                <div class="value">AED ${priceSqm.toLocaleString()}</div>
+                            </div>
+                            <div class="info-item">
+                                <label>Area Average</label>
+                                <div class="value">AED ${areaAvg.toLocaleString()}/sqm</div>
+                            </div>
+                            <div class="info-item">
+                                <label>Parties Involved</label>
+                                <div class="value">Sellers: ${tx.no_of_parties_role_1 || '-'} • Buyers: ${tx.no_of_parties_role_2 || '-'}</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="similar-section" id="similarSection">
+                    <h3>🔄 Similar Transactions in ${tx.area_name_en || 'this area'}</h3>
+                    <div class="similar-grid" id="similarGrid">
+                        <div style="color:#666;">Loading similar transactions...</div>
+                    </div>
+                </div>
+            `;
+        }
+
+        async function loadSimilar(tx) {
+            try {
+                const params = new URLSearchParams();
+                if (tx.area_name_en) params.set('area', tx.area_name_en);
+                if (tx.property_type_en) params.set('property_type', tx.property_type_en);
+                params.set('limit', '6');
+                
+                const data = await fetch(API + '/transactions?' + params.toString()).then(r => r.json());
+                const similar = (data.data || []).filter(t => t.id !== tx.id).slice(0, 4);
+                
+                if (!similar.length) {
+                    document.getElementById('similarGrid').innerHTML = '<div style="color:#666;">No similar transactions found</div>';
+                    return;
+                }
+
+                document.getElementById('similarGrid').innerHTML = similar.map(t => `
+                    <a href="/transaction.html?id=${t.id}" class="similar-card" style="text-decoration:none;color:inherit;">
+                        <div class="date">${t.instance_date ? new Date(t.instance_date).toLocaleDateString() : '-'}</div>
+                        <div class="price">AED ${Number(t.actual_worth || 0).toLocaleString()}</div>
+                        <div class="details">
+                            ${t.property_sub_type_en || t.property_type_en || '-'} • 
+                            ${Number(t.procedure_area || 0).toLocaleString()} sqm • 
+                            ${Number(t.meter_sale_price || 0).toLocaleString()} AED/sqm
+                        </div>
+                    </a>
+                `).join('');
+            } catch(e) {
+                document.getElementById('similarGrid').innerHTML = '<div style="color:#666;">Failed to load similar transactions</div>';
+            }
+        }
+
+        loadTransaction();
+    </script>
+</body>
+</html>

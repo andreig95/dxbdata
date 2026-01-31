@@ -1,0 +1,454 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mortgage Calculator - DXBData</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #0a0a0f; color: #fff; min-height: 100vh; }
+        .header { background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%); padding: 1rem 1.5rem; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #2a2a4a; }
+        .logo { font-size: 1.5rem; font-weight: bold; background: linear-gradient(90deg, #00d4ff, #7b2cbf); -webkit-background-clip: text; -webkit-text-fill-color: transparent; text-decoration: none; }
+        .btn { padding: 0.5rem 1rem; background: #2a2a4a; border: none; border-radius: 6px; color: #fff; cursor: pointer; font-size: 0.85rem; text-decoration: none; }
+        .btn:hover { background: #3a3a5a; }
+        .container { max-width: 1200px; margin: 0 auto; padding: 1.5rem; }
+        
+        .unit-toggles { background: #12121a; border: 1px solid #2a2a4a; border-radius: 12px; padding: 1rem; margin-bottom: 1.5rem; }
+        .toggle-row { display: flex; flex-wrap: wrap; justify-content: center; gap: 1.5rem; align-items: center; }
+        .toggle-group { display: flex; align-items: center; gap: 0.5rem; }
+        .toggle-group label { font-size: 0.85rem; color: #888; }
+        .toggle-btns { display: flex; background: #1a1a2a; border-radius: 6px; padding: 3px; }
+        .toggle-btns button { padding: 0.4rem 0.8rem; background: transparent; border: none; color: #888; cursor: pointer; border-radius: 4px; font-size: 0.8rem; transition: all 0.2s; }
+        .toggle-btns button.active { background: #00d4ff; color: #000; }
+        .rates-info { text-align: center; font-size: 0.75rem; color: #666; margin-top: 0.75rem; }
+        .rates-info .live { color: #4caf50; }
+        
+        .calc-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; }
+        @media (max-width: 900px) { .calc-grid { grid-template-columns: 1fr; } }
+        
+        .card { background: #12121a; border: 1px solid #2a2a4a; border-radius: 12px; padding: 1.25rem; margin-bottom: 1rem; }
+        .card h3 { color: #00d4ff; font-size: 1rem; margin-bottom: 1rem; }
+        
+        .form-group { margin-bottom: 1rem; }
+        .form-group label { display: block; font-size: 0.8rem; color: #888; margin-bottom: 0.5rem; }
+        .form-group input[type="range"] { width: 100%; accent-color: #00d4ff; }
+        .range-labels { display: flex; justify-content: space-between; font-size: 0.7rem; color: #666; margin-top: 0.25rem; }
+        
+        .developer-search { width: 100%; padding: 0.5rem; background: #1a1a2a; border: 1px solid #3a3a5a; border-radius: 6px; color: #fff; margin-bottom: 0.75rem; }
+        .developer-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem; max-height: 180px; overflow-y: auto; }
+        .dev-btn { display: flex; align-items: center; gap: 0.5rem; padding: 0.5rem; background: #1a1a2a; border: 1px solid #3a3a5a; border-radius: 6px; color: #ccc; cursor: pointer; font-size: 0.8rem; text-align: left; transition: all 0.2s; }
+        .dev-btn:hover { border-color: #00d4ff; }
+        .dev-btn.active { background: #00d4ff; color: #000; border-color: #00d4ff; }
+        
+        .dev-info { background: #1a1a2a; border-radius: 8px; padding: 1rem; margin-top: 1rem; border: 1px solid #3a3a5a; }
+        .dev-header { display: flex; align-items: center; gap: 0.75rem; margin-bottom: 0.75rem; }
+        .dev-header .emoji { font-size: 2rem; }
+        .dev-header .name { font-weight: 600; }
+        .dev-header .est { font-size: 0.75rem; color: #888; }
+        .dev-desc { font-size: 0.85rem; color: #888; margin-bottom: 0.75rem; }
+        .dev-stats { display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem; }
+        .dev-stat { background: #12121a; padding: 0.5rem; border-radius: 6px; }
+        .dev-stat .label { font-size: 0.65rem; color: #666; text-transform: uppercase; }
+        .dev-stat .value { font-size: 0.9rem; font-weight: 600; }
+        .dev-stat .value.green { color: #4caf50; }
+        .dev-stat .value.amber { color: #ff9800; }
+        .dev-stat .value.red { color: #f44336; }
+        .dev-stat .sub { font-size: 0.7rem; color: #666; }
+        .dev-areas { margin-top: 0.75rem; }
+        .dev-areas .label { font-size: 0.7rem; color: #666; margin-bottom: 0.25rem; }
+        .area-tags { display: flex; flex-wrap: wrap; gap: 0.25rem; }
+        .area-tag { background: rgba(123,44,191,0.2); color: #b388ff; padding: 0.2rem 0.5rem; border-radius: 4px; font-size: 0.7rem; }
+        
+        .result-hero { text-align: center; padding: 1.5rem; }
+        .result-hero .amount { font-size: 2.5rem; font-weight: bold; color: #4caf50; }
+        .result-hero .label { color: #888; margin-top: 0.25rem; }
+        
+        .result-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; margin-top: 1rem; }
+        .result-item { background: #1a1a2a; padding: 0.75rem; border-radius: 8px; text-align: center; }
+        .result-item .label { font-size: 0.75rem; color: #888; }
+        .result-item .value { font-size: 1.1rem; font-weight: 600; }
+        .result-item .value.amber { color: #ff9800; }
+        
+        .cost-row { display: flex; justify-content: space-between; padding: 0.5rem 0; font-size: 0.9rem; border-bottom: 1px solid #2a2a4a; }
+        .cost-row:last-child { border-bottom: none; }
+        .cost-row.total { border-top: 2px solid #3a3a5a; margin-top: 0.5rem; padding-top: 0.75rem; font-weight: 600; }
+        .cost-row .value { color: #fff; }
+        .cost-row.total .value { color: #4caf50; font-size: 1.1rem; }
+        
+        .breakdown-bar { height: 24px; border-radius: 12px; overflow: hidden; display: flex; margin: 1rem 0; }
+        .breakdown-bar .principal { background: #4caf50; }
+        .breakdown-bar .interest { background: #ff9800; }
+        .breakdown-legend { display: flex; justify-content: space-between; font-size: 0.8rem; }
+        .breakdown-legend span { display: flex; align-items: center; gap: 0.5rem; }
+        .breakdown-legend .dot { width: 10px; height: 10px; border-radius: 50%; }
+        .breakdown-legend .dot.green { background: #4caf50; }
+        .breakdown-legend .dot.amber { background: #ff9800; }
+        
+        .afford-box { padding: 1rem; border-radius: 8px; margin-top: 1rem; }
+        .afford-box.good { background: rgba(76,175,80,0.1); border: 1px solid rgba(76,175,80,0.3); }
+        .afford-box.bad { background: rgba(244,67,54,0.1); border: 1px solid rgba(244,67,54,0.3); }
+        .afford-box .status { display: flex; align-items: center; gap: 0.5rem; font-weight: 600; margin-bottom: 0.5rem; }
+        .afford-box.good .status { color: #4caf50; }
+        .afford-box.bad .status { color: #f44336; }
+        .afford-box .details { font-size: 0.85rem; color: #888; }
+        
+        .guidelines { background: rgba(255,152,0,0.1); border: 1px solid rgba(255,152,0,0.3); border-radius: 12px; padding: 1rem; margin-top: 1.5rem; }
+        .guidelines h4 { color: #ff9800; margin-bottom: 0.5rem; }
+        .guidelines ul { font-size: 0.85rem; color: #ccc; padding-left: 1.25rem; }
+        .guidelines li { margin-bottom: 0.25rem; }
+        
+        .size-ref { display: grid; grid-template-columns: repeat(4, 1fr); gap: 0.75rem; margin-top: 1rem; }
+        @media (max-width: 600px) { .size-ref { grid-template-columns: 1fr 1fr; } }
+        .size-item { background: #1a1a2a; padding: 0.75rem; border-radius: 8px; text-align: center; }
+        .size-item .type { font-size: 0.8rem; color: #888; }
+        .size-item .range { font-weight: 600; margin-top: 0.25rem; }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <a href="/" class="logo">DXBData</a>
+        <a href="/" class="btn">← Back to Search</a>
+    </div>
+
+    <div class="container">
+        <!-- Unit Toggles -->
+        <div class="unit-toggles">
+            <div class="toggle-row">
+                <div class="toggle-group">
+                    <label>📐 Area:</label>
+                    <div class="toggle-btns">
+                        <button onclick="setAreaUnit('sqm')" id="btn-sqm">sqm</button>
+                        <button onclick="setAreaUnit('sqft')" id="btn-sqft" class="active">sq ft</button>
+                    </div>
+                </div>
+                <div class="toggle-group">
+                    <label>💱 Currency:</label>
+                    <div class="toggle-btns">
+                        <button onclick="setCurrency('AED')" id="btn-AED" class="active">AED</button>
+                        <button onclick="setCurrency('USD')" id="btn-USD">USD</button>
+                        <button onclick="setCurrency('EUR')" id="btn-EUR">EUR</button>
+                    </div>
+                </div>
+            </div>
+            <div class="rates-info">
+                <span class="live">●</span> Live rates: 1 AED = <span id="rate-usd">$0.2723</span> USD = <span id="rate-eur">€0.2276</span> EUR
+                <span id="rate-update"></span>
+            </div>
+        </div>
+
+        <div class="calc-grid">
+            <!-- Left Column -->
+            <div>
+                <!-- Developer Check -->
+                <div class="card">
+                    <h3>🏗️ Developer Check</h3>
+                    <input type="text" class="developer-search" placeholder="Search by name or area..." id="devSearch" oninput="filterDevelopers()">
+                    <div class="developer-grid" id="devGrid"></div>
+                    <div id="devInfo" style="display:none;"></div>
+                </div>
+
+                <!-- Property Details -->
+                <div class="card">
+                    <h3>🏠 Property Details</h3>
+                    <div class="form-group">
+                        <label>Property Price: <span id="priceDisplay">AED 2,000,000</span></label>
+                        <input type="range" id="price" min="500000" max="50000000" step="100000" value="2000000" oninput="calculate()">
+                        <div class="range-labels"><span id="priceMin">AED 500K</span><span id="priceMax">AED 50M</span></div>
+                    </div>
+                    <div class="form-group">
+                        <label>Down Payment: <span id="dpPct">25</span>% (<span id="dpAmount">AED 500,000</span>)</label>
+                        <input type="range" id="downpayment" min="20" max="80" step="5" value="25" oninput="calculate()">
+                        <div class="range-labels"><span>20% (Min for expats)</span><span>80%</span></div>
+                    </div>
+                    <div class="form-group">
+                        <label>Interest Rate: <span id="rateDisplay">4.5</span>% p.a.</label>
+                        <input type="range" id="rate" min="2" max="8" step="0.1" value="4.5" oninput="calculate()">
+                        <div class="range-labels"><span>2%</span><span>8%</span></div>
+                    </div>
+                    <div class="form-group">
+                        <label>Loan Term: <span id="termDisplay">25</span> years</label>
+                        <input type="range" id="term" min="5" max="25" step="1" value="25" oninput="calculate()">
+                        <div class="range-labels"><span>5 years</span><span>25 years</span></div>
+                    </div>
+                </div>
+
+                <!-- Affordability -->
+                <div class="card">
+                    <h3>💰 Affordability Check</h3>
+                    <div class="form-group">
+                        <label>Monthly Income: <span id="incomeDisplay">AED 50,000</span></label>
+                        <input type="range" id="income" min="10000" max="500000" step="5000" value="50000" oninput="calculate()">
+                        <div class="range-labels"><span id="incomeMin">AED 10K</span><span id="incomeMax">AED 500K</span></div>
+                    </div>
+                    <div id="affordBox" class="afford-box good">
+                        <div class="status">✅ Affordable!</div>
+                        <div class="details">Debt-to-Income Ratio: <strong id="dti">17%</strong><br>Recommended max: 30% of income</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Right Column -->
+            <div>
+                <!-- Monthly Payment -->
+                <div class="card">
+                    <h3>📊 Monthly Payment</h3>
+                    <div class="result-hero">
+                        <div class="amount" id="monthlyPayment">AED 8,337</div>
+                        <div class="label">per month</div>
+                    </div>
+                    <div class="result-grid">
+                        <div class="result-item">
+                            <div class="label">Loan Amount</div>
+                            <div class="value" id="loanAmount">AED 1.50M</div>
+                        </div>
+                        <div class="result-item">
+                            <div class="label">Total Interest</div>
+                            <div class="value amber" id="totalInterest">AED 1.00M</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Upfront Costs -->
+                <div class="card">
+                    <h3>💵 Upfront Costs</h3>
+                    <div class="cost-row"><span>Down Payment (<span id="dpPct2">25</span>%)</span><span class="value" id="costDp">AED 500,000</span></div>
+                    <div class="cost-row"><span>DLD Transfer Fee (4%)</span><span class="value" id="costDld">AED 80,000</span></div>
+                    <div class="cost-row"><span>Agent Commission (2%)</span><span class="value" id="costAgent">AED 40,000</span></div>
+                    <div class="cost-row"><span>Admin Fees (approx)</span><span class="value" id="costAdmin">AED 4,000</span></div>
+                    <div class="cost-row total"><span>Total Upfront</span><span class="value" id="costTotal">AED 624,000</span></div>
+                </div>
+
+                <!-- Payment Breakdown -->
+                <div class="card">
+                    <h3>📈 Payment Breakdown</h3>
+                    <div class="breakdown-bar">
+                        <div class="principal" id="barPrincipal" style="width:60%"></div>
+                        <div class="interest" id="barInterest" style="width:40%"></div>
+                    </div>
+                    <div class="breakdown-legend">
+                        <span><span class="dot green"></span> Principal: <span id="legendPrincipal">AED 1.50M</span></span>
+                        <span><span class="dot amber"></span> Interest: <span id="legendInterest">AED 1.00M</span></span>
+                    </div>
+                    <div class="cost-row total" style="margin-top:1rem;">
+                        <span>Total Repayment (<span id="termYears">25</span> years)</span>
+                        <span class="value" id="totalRepayment">AED 2.50M</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Guidelines -->
+        <div class="guidelines">
+            <h4>🇦🇪 Dubai Mortgage Guidelines</h4>
+            <ul>
+                <li><strong>Expats:</strong> Max 80% LTV for first property under <span id="guide5m">AED 5M</span>, 70% over AED 5M</li>
+                <li><strong>UAE Nationals:</strong> Max 85% LTV for first property</li>
+                <li><strong>Off-plan:</strong> Different financing rules apply (usually 50% during construction)</li>
+                <li><strong>Age limit:</strong> Loan must be repaid by age 65 (employed) or 70 (self-employed)</li>
+            </ul>
+        </div>
+
+        <!-- Size Reference -->
+        <div class="card" style="margin-top:1rem;">
+            <h3>📐 Area Size Reference</h3>
+            <div class="size-ref">
+                <div class="size-item"><div class="type">Studio</div><div class="range" id="sizeStudio">375-540 sq ft</div></div>
+                <div class="size-item"><div class="type">1 BR</div><div class="range" id="size1br">590-915 sq ft</div></div>
+                <div class="size-item"><div class="type">2 BR</div><div class="range" id="size2br">970-1,400 sq ft</div></div>
+                <div class="size-item"><div class="type">3 BR Villa</div><div class="range" id="size3br">2,150-3,770 sq ft</div></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // State
+        let areaUnit = 'sqft';
+        let currency = 'AED';
+        let rates = { AED: 1, USD: 0.2723, EUR: 0.2276 };
+        let selectedDev = null;
+
+        const DEVELOPERS = [
+            { id: 'emaar', name: 'Emaar Properties', logo: '🏛️', est: 1997, desc: "One of the world's largest developers, creator of Burj Khalifa.", projects: 85, completed: 65, onTime: 92, priceMin: 1500000, priceMax: 50000000, areas: ['Downtown Dubai', 'Dubai Marina', 'Dubai Hills', 'Creek Harbour'], rating: 4.5, reviews: 2847 },
+            { id: 'damac', name: 'DAMAC Properties', logo: '🌟', est: 2002, desc: 'Luxury developer with Versace, Fendi, Trump branded residences.', projects: 45, completed: 32, onTime: 78, priceMin: 800000, priceMax: 30000000, areas: ['Business Bay', 'DAMAC Hills', 'JLT'], rating: 4.0, reviews: 1523 },
+            { id: 'nakheel', name: 'Nakheel', logo: '🌴', est: 2000, desc: 'Government developer behind Palm Jumeirah & The World islands.', projects: 35, completed: 28, onTime: 85, priceMin: 1000000, priceMax: 80000000, areas: ['Palm Jumeirah', 'JVC', 'Discovery Gardens'], rating: 4.3, reviews: 1892 },
+            { id: 'meraas', name: 'Meraas', logo: '✨', est: 2007, desc: 'Innovative developer known for lifestyle destinations.', projects: 25, completed: 18, onTime: 90, priceMin: 1200000, priceMax: 25000000, areas: ['City Walk', 'La Mer', 'Bluewaters'], rating: 4.4, reviews: 956 },
+            { id: 'sobha', name: 'Sobha Realty', logo: '🏆', est: 1976, desc: 'Known for quality craftsmanship and timely delivery.', projects: 18, completed: 12, onTime: 95, priceMin: 1800000, priceMax: 15000000, areas: ['Sobha Hartland', 'MBR City'], rating: 4.6, reviews: 723 },
+            { id: 'select', name: 'Select Group', logo: '🔷', est: 2002, desc: 'Premium developer focused on Dubai Marina waterfront.', projects: 15, completed: 12, onTime: 88, priceMin: 600000, priceMax: 8000000, areas: ['Dubai Marina', 'Business Bay', 'JLT'], rating: 4.2, reviews: 534 },
+            { id: 'azizi', name: 'Azizi Developments', logo: '🏗️', est: 2007, desc: 'Fast-growing, known for affordable luxury.', projects: 30, completed: 18, onTime: 75, priceMin: 400000, priceMax: 5000000, areas: ['Al Furjan', 'Palm Jumeirah', 'MBR City'], rating: 3.9, reviews: 892 },
+            { id: 'danube', name: 'Danube Properties', logo: '🌊', est: 2014, desc: 'Value-focused with flexible payment plans.', projects: 22, completed: 15, onTime: 80, priceMin: 300000, priceMax: 3000000, areas: ['JVC', 'Arjan', 'Al Furjan'], rating: 4.0, reviews: 1234 },
+            { id: 'omniyat', name: 'Omniyat', logo: '💎', est: 2005, desc: 'Ultra-luxury architectural masterpieces.', projects: 12, completed: 8, onTime: 85, priceMin: 3000000, priceMax: 100000000, areas: ['Business Bay', 'Palm Jumeirah'], rating: 4.7, reviews: 312 },
+            { id: 'ellington', name: 'Ellington Properties', logo: '🎨', est: 2014, desc: 'Design-led boutique residences.', projects: 15, completed: 10, onTime: 88, priceMin: 800000, priceMax: 8000000, areas: ['JVC', 'MBR City', 'Downtown'], rating: 4.3, reviews: 445 }
+        ];
+
+        // Fetch live rates
+        async function fetchRates() {
+            try {
+                const res = await fetch('https://open.er-api.com/v6/latest/AED');
+                const data = await res.json();
+                if (data.result === 'success') {
+                    rates.USD = data.rates.USD;
+                    rates.EUR = data.rates.EUR;
+                    document.getElementById('rate-usd').textContent = '$' + rates.USD.toFixed(4);
+                    document.getElementById('rate-eur').textContent = '€' + rates.EUR.toFixed(4);
+                    const update = new Date(data.time_last_update_utc);
+                    document.getElementById('rate-update').textContent = ' • Updated: ' + update.toLocaleDateString('en', { month: 'short', day: 'numeric' });
+                }
+            } catch(e) { console.log('Using fallback rates'); }
+        }
+        fetchRates();
+
+        // Format helpers
+        function formatCurrency(aed, compact = true) {
+            const val = aed * rates[currency];
+            const sym = currency === 'USD' ? '$' : currency === 'EUR' ? '€' : 'AED ';
+            if (compact && val >= 1000000) return sym + (val / 1000000).toFixed(2) + 'M';
+            if (compact && val >= 1000) return sym + Math.round(val / 1000) + 'K';
+            return sym + val.toLocaleString('en', { maximumFractionDigits: 0 });
+        }
+
+        function formatArea(sqftMin, sqftMax) {
+            if (areaUnit === 'sqm') {
+                return Math.round(sqftMin * 0.0929) + '-' + Math.round(sqftMax * 0.0929) + ' sqm';
+            }
+            return sqftMin.toLocaleString() + '-' + sqftMax.toLocaleString() + ' sq ft';
+        }
+
+        // Toggle functions
+        function setAreaUnit(unit) {
+            areaUnit = unit;
+            document.getElementById('btn-sqm').classList.toggle('active', unit === 'sqm');
+            document.getElementById('btn-sqft').classList.toggle('active', unit === 'sqft');
+            updateSizeRef();
+            calculate();
+        }
+
+        function setCurrency(curr) {
+            currency = curr;
+            ['AED', 'USD', 'EUR'].forEach(c => document.getElementById('btn-' + c).classList.toggle('active', c === curr));
+            calculate();
+        }
+
+        function updateSizeRef() {
+            document.getElementById('sizeStudio').textContent = formatArea(375, 540);
+            document.getElementById('size1br').textContent = formatArea(590, 915);
+            document.getElementById('size2br').textContent = formatArea(970, 1400);
+            document.getElementById('size3br').textContent = formatArea(2150, 3770);
+        }
+
+        // Developer functions
+        function renderDevelopers(devs = DEVELOPERS) {
+            const grid = document.getElementById('devGrid');
+            grid.innerHTML = devs.map(d => `<button class="dev-btn ${selectedDev === d.id ? 'active' : ''}" onclick="selectDev('${d.id}')">${d.logo} ${d.name}</button>`).join('');
+        }
+
+        function filterDevelopers() {
+            const q = document.getElementById('devSearch').value.toLowerCase();
+            if (!q) { renderDevelopers(); return; }
+            const filtered = DEVELOPERS.filter(d => d.name.toLowerCase().includes(q) || d.areas.some(a => a.toLowerCase().includes(q)));
+            renderDevelopers(filtered);
+        }
+
+        function selectDev(id) {
+            if (selectedDev === id) { selectedDev = null; document.getElementById('devInfo').style.display = 'none'; renderDevelopers(); return; }
+            selectedDev = id;
+            const d = DEVELOPERS.find(x => x.id === id);
+            renderDevelopers();
+            
+            const otClass = d.onTime >= 90 ? 'green' : d.onTime >= 80 ? 'amber' : 'red';
+            document.getElementById('devInfo').style.display = 'block';
+            document.getElementById('devInfo').innerHTML = `
+                <div class="dev-info">
+                    <div class="dev-header">
+                        <span class="emoji">${d.logo}</span>
+                        <div><div class="name">${d.name}</div><div class="est">Est. ${d.est}</div></div>
+                    </div>
+                    <div class="dev-desc">${d.desc}</div>
+                    <div class="dev-stats">
+                        <div class="dev-stat"><div class="label">Rating</div><div class="value">⭐ ${d.rating}</div><div class="sub">${d.reviews.toLocaleString()} reviews</div></div>
+                        <div class="dev-stat"><div class="label">On-Time Delivery</div><div class="value ${otClass}">${d.onTime}%</div><div class="sub">${d.completed}/${d.projects} completed</div></div>
+                        <div class="dev-stat"><div class="label">Projects</div><div class="value">${d.projects}</div><div class="sub">${d.completed} completed</div></div>
+                        <div class="dev-stat"><div class="label">Price Range</div><div class="value" style="font-size:0.75rem;">${formatCurrency(d.priceMin)} - ${formatCurrency(d.priceMax)}</div></div>
+                    </div>
+                    <div class="dev-areas"><div class="label">Popular Areas</div><div class="area-tags">${d.areas.map(a => `<span class="area-tag">${a}</span>`).join('')}</div></div>
+                </div>
+            `;
+        }
+
+        // Main calculation
+        function calculate() {
+            const price = parseFloat(document.getElementById('price').value);
+            const dp = parseFloat(document.getElementById('downpayment').value);
+            const rate = parseFloat(document.getElementById('rate').value);
+            const term = parseInt(document.getElementById('term').value);
+            const income = parseFloat(document.getElementById('income').value);
+
+            const dpAmount = price * (dp / 100);
+            const loan = price - dpAmount;
+            const monthlyRate = rate / 100 / 12;
+            const numPayments = term * 12;
+            
+            const monthly = monthlyRate > 0 ? (loan * monthlyRate * Math.pow(1 + monthlyRate, numPayments)) / (Math.pow(1 + monthlyRate, numPayments) - 1) : loan / numPayments;
+            const totalPay = monthly * numPayments;
+            const totalInt = totalPay - loan;
+
+            const dld = price * 0.04;
+            const agent = price * 0.02;
+            const admin = 4000;
+            const totalUpfront = dpAmount + dld + agent + admin;
+
+            const dti = Math.round((monthly / income) * 100);
+            const canAfford = monthly <= income * 0.3;
+
+            // Update displays
+            document.getElementById('priceDisplay').textContent = formatCurrency(price, false);
+            document.getElementById('priceMin').textContent = formatCurrency(500000);
+            document.getElementById('priceMax').textContent = formatCurrency(50000000);
+            document.getElementById('dpPct').textContent = dp;
+            document.getElementById('dpPct2').textContent = dp;
+            document.getElementById('dpAmount').textContent = formatCurrency(dpAmount, false);
+            document.getElementById('rateDisplay').textContent = rate;
+            document.getElementById('termDisplay').textContent = term;
+            document.getElementById('termYears').textContent = term;
+            document.getElementById('incomeDisplay').textContent = formatCurrency(income, false);
+            document.getElementById('incomeMin').textContent = formatCurrency(10000);
+            document.getElementById('incomeMax').textContent = formatCurrency(500000);
+
+            document.getElementById('monthlyPayment').textContent = formatCurrency(monthly, false);
+            document.getElementById('loanAmount').textContent = formatCurrency(loan);
+            document.getElementById('totalInterest').textContent = formatCurrency(totalInt);
+
+            document.getElementById('costDp').textContent = formatCurrency(dpAmount, false);
+            document.getElementById('costDld').textContent = formatCurrency(dld, false);
+            document.getElementById('costAgent').textContent = formatCurrency(agent, false);
+            document.getElementById('costAdmin').textContent = formatCurrency(admin, false);
+            document.getElementById('costTotal').textContent = formatCurrency(totalUpfront, false);
+
+            const pctPrincipal = (loan / totalPay) * 100;
+            document.getElementById('barPrincipal').style.width = pctPrincipal + '%';
+            document.getElementById('barInterest').style.width = (100 - pctPrincipal) + '%';
+            document.getElementById('legendPrincipal').textContent = formatCurrency(loan);
+            document.getElementById('legendInterest').textContent = formatCurrency(totalInt);
+            document.getElementById('totalRepayment').textContent = formatCurrency(totalPay);
+
+            document.getElementById('dti').textContent = dti + '%';
+            const box = document.getElementById('affordBox');
+            if (canAfford) {
+                box.className = 'afford-box good';
+                box.innerHTML = `<div class="status">✅ Affordable!</div><div class="details">Debt-to-Income Ratio: <strong>${dti}%</strong><br>Recommended max: 30% of income</div>`;
+            } else {
+                box.className = 'afford-box bad';
+                box.innerHTML = `<div class="status">⚠️ May Be Stretched</div><div class="details">Debt-to-Income Ratio: <strong>${dti}%</strong><br>Recommended max: 30% of income</div>`;
+            }
+
+            document.getElementById('guide5m').textContent = formatCurrency(5000000);
+
+            // Update dev info if selected
+            if (selectedDev) selectDev(selectedDev);
+        }
+
+        // Init
+        renderDevelopers();
+        calculate();
+    </script>
+</body>
+</html>
